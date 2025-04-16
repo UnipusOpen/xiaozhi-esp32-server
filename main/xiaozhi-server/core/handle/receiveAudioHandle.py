@@ -4,6 +4,7 @@ import asyncio
 from core.utils.util import remove_punctuation_and_length
 from core.handle.sendAudioHandle import send_stt_message
 from core.handle.intentHandler import handle_user_intent
+from core.handle.audioCorrectHandler import audio_correct
 
 TAG = __name__
 logger = setup_logging()
@@ -59,8 +60,14 @@ async def startToChat(conn, text):
         conn.asr_server_receive = True
         return
 
+    # 语音打分
+    score = await audio_correct(conn, text)
+    score_pre = ''
+    if score is not None:
+        score_pre = str(score) + ': '
+
     # 意图未被处理，继续常规聊天流程
-    await send_stt_message(conn, text)
+    await send_stt_message(conn, score_pre + text)
     if conn.use_function_call_mode:
         # 使用支持function calling的聊天方法
         conn.executor.submit(conn.chat_with_function_calling, text)
