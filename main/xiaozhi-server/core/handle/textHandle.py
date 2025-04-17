@@ -3,7 +3,7 @@ import json
 from core.handle.abortHandle import handleAbortMessage
 from core.handle.helloHandle import handleHelloMessage
 from core.utils.util import remove_punctuation_and_length
-from core.handle.receiveAudioHandle import startToChat, handleAudioMessage
+from core.handle.receiveAudioHandle import startToChat, handleAudioMessage, startToChatWithCorrect
 from core.handle.sendAudioHandle import send_stt_message, send_tts_message
 from core.handle.iotHandle import handleIotDescriptors, handleIotStatus
 import asyncio
@@ -55,7 +55,7 @@ async def handleTextMessage(conn, message):
                         await send_tts_message(conn, "stop", None)
                     else:
                         # 否则需要LLM对文字内容进行答复
-                        await startToChat(conn, text)
+                        await startToChatWithCorrect(conn, text)
         elif msg_json["type"] == "iot":
             if "descriptors" in msg_json:
                 asyncio.create_task(handleIotDescriptors(conn, msg_json["descriptors"]))

@@ -6,6 +6,7 @@ from core.utils.util import (
     remove_punctuation_and_length,
     get_string_no_punctuation_or_emoji,
 )
+from core.handle.audioCorrectHandler import get_cmd_correct_status
 
 TAG = __name__
 logger = setup_logging()
@@ -15,6 +16,11 @@ async def sendAudioMessage(conn, audios, text, text_index=0):
     # 发送句子开始消息
     if text_index == conn.tts_first_text_index:
         logger.bind(tag=TAG).info(f"发送第一段语音: {text}")
+    # 记录文本
+    cmd_correct_status = get_cmd_correct_status(conn, '')
+    if cmd_correct_status:
+        conn.last_text = text
+        text = '请朗读: ' + text
     await send_tts_message(conn, "sentence_start", text)
 
     # 播放音频

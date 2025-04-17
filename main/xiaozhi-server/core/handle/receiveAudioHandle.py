@@ -4,7 +4,7 @@ import asyncio
 from core.utils.util import remove_punctuation_and_length
 from core.handle.sendAudioHandle import send_stt_message
 from core.handle.intentHandler import handle_user_intent
-from core.handle.audioCorrectHandler import audio_correct
+from core.handle.audioCorrectHandler import audio_correct, get_cmd_correct_status
 
 TAG = __name__
 logger = setup_logging()
@@ -41,7 +41,7 @@ async def handleAudioMessage(conn, audio):
             logger.bind(tag=TAG).info(f"识别文本: {text}")
             text_len, _ = remove_punctuation_and_length(text)
             if text_len > 0:
-                await startToChat(conn, text)
+                await startToChatWithCorrect(conn, text)
             else:
                 conn.asr_server_receive = True
         conn.asr_audio.clear()
@@ -60,7 +60,7 @@ async def startToChat(conn, text):
         conn.asr_server_receive = True
         return
 
-    # 语音打分
+    # 自动英文口语打分
     score = await audio_correct(conn, text)
     score_pre = ''
     if score is not None:
@@ -74,6 +74,51 @@ async def startToChat(conn, text):
     else:
         conn.executor.submit(conn.chat, text)
 
+async def startToChatWithCorrect(conn, text):
+    if conn.need_bind:
+        await check_bind_device(conn)
+        return
+    # 首先进行意图分析
+    intent_handled = await handle_user_intent(conn, text)
+
+    if intent_handled:
+        # 如果意图已被处理，不再进行聊天
+        conn.asr_server_receive = True
+        return
+
+    cmd_enabled = conn.config.get('AUDIO_CORRECT', {}).get('cmd_enabled', False)
+    en_ques_prompt = conn.config.get('AUDIO_CORRECT', {}).get('en_ques_prompt', '')
+    auto_enabled = conn.config.get('AUDIO_CORRECT', {}).get('auto_enabled', False)
+    score_pre = ''
+    if cmd_enabled:
+        # 交互打分
+        cmd_correct_status = get_cmd_correct_status(conn, text)
+        if cmd_correct_status:
+            print("处于交互式语音测评模式!")
+            score = await audio_correct(conn, text, False)
+            if score is not None:
+                score_pre = str(score) + ': '
+            # 意图未被处理，继续常规聊天流程
+            await send_stt_message(conn, score_pre + text)
+            if conn.use_function_call_mode:
+                conn.executor.submit(conn.chat_with_function_calling, en_ques_prompt)
+            else:
+                print("no_function_call: " + en_ques_prompt)
+                conn.executor.submit(conn.chat, en_ques_prompt)
+            return
+    elif auto_enabled:
+        # 自动英文口语打分
+        score = await audio_correct(conn, text, True)
+        if score is not None:
+            score_pre = str(score) + ': '
+
+    # 意图未被处理，继续常规聊天流程
+    await send_stt_message(conn, score_pre + text)
+    if conn.use_function_call_mode:
+        # 使用支持function calling的聊天方法
+        conn.executor.submit(conn.chat_with_function_calling, text)
+    else:
+        conn.executor.submit(conn.chat, text)
 
 async def no_voice_close_connect(conn):
     if conn.client_no_voice_last_time == 0.0:
@@ -93,7 +138,7 @@ async def no_voice_close_connect(conn):
             prompt = (
                 "请你以“时间过得真快”未来头，用富有感情、依依不舍的话来结束这场对话吧。"
             )
-            await startToChat(conn, prompt)
+            await startToChatWithCorrect(conn, prompt)
 
 
 async def check_bind_device(conn):

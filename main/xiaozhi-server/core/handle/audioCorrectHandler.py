@@ -2,6 +2,20 @@ import json
 import aiohttp
 import base64
 
+def get_cmd_correct_status(conn, text):
+    start_prompts = conn.config.get('AUDIO_CORRECT', {}).get('start_prompt', [])
+    if text in start_prompts:
+        conn.cmd_correct_status = True
+        return True
+
+    end_prompts = conn.config.get('AUDIO_CORRECT', {}).get('end_prompt', [])
+    if text in end_prompts:
+        conn.cmd_correct_status = False
+        conn.last_text = ''
+        return False
+
+    return getattr(conn, 'cmd_correct_status', False)
+
 def simple_lang_detect(text):
     """
     简单的语种检测函数，用于判断文本是英文还是中文
@@ -40,20 +54,28 @@ def parse_overall_score(result):
     except (json.JSONDecodeError, AttributeError):
         return None
 
-async def audio_correct(conn, text):
-    enable_audio_correct = conn.config["AUDIO_CORRECT"]["auto_enabled"]
-    if not enable_audio_correct:
-        print("语音测评功能未启用，不进行测评")
+async def audio_correct(conn, text, auto):
+    auto_correct_enabled = conn.config["AUDIO_CORRECT"]["auto_enabled"]
+    cmd_correct_enabled = conn.config["AUDIO_CORRECT"]["cmd_enabled"]
+    if not auto_correct_enabled and not cmd_correct_enabled:
+        print("语音测评功能未启用，不进行测评!")
         return None
     sync_audio_correct_url = conn.config["AUDIO_CORRECT"]["url"]
 
-    # 判断 conn.asr_audio 和 text 是否为空
-    if not conn.asr_audio or not text:
-        print("音频数据或参考文本为空，不进行测评!")
-        return None
+    real_text = ''
+    if auto:
+        real_text = text
+        if not conn.asr_audio or not real_text:
+            print("自动口语测评音频数据或参考文本为空，不进行测评!")
+            return None
+    else:
+        real_text = getattr(conn, 'last_text', '')
+        if not conn.asr_audio or not real_text:
+            print("交互口语测评音频数据或上次文本为空，不进行测评!")
+            return None
 
     try:
-        lang = simple_lang_detect(text)
+        lang = simple_lang_detect(real_text)
         if lang == 'en':
             lang_param = 1
         elif lang == 'zh':
@@ -92,8 +114,7 @@ async def audio_correct(conn, text):
             "engine": "3",
             "userId": "uid",
             "quesType": 5,
-            "requestJson": json.dumps({"refText": text, "3": {"audioType": "wav"}}),
-            # 仅对 audioBytes 进行 base64 编码
+            "requestJson": json.dumps({"refText": real_text, "3": {"audioType": "wav"}}),
             "audioBytes": base64.b64encode(audio_bytes).decode('utf-8')
         }
 
@@ -102,7 +123,6 @@ async def audio_correct(conn, text):
                 result = await response.json()
                 print(f"语音打分结果: {result}")
                 overall_score = parse_overall_score(result)
-                print(f"overall 总分: {overall_score}")
                 return overall_score
             else:
                 print(f"请求失败，状态码: {response.status}")
