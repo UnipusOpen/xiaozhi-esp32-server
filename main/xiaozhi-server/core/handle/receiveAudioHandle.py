@@ -87,25 +87,24 @@ async def startToChatWithCorrect(conn, text):
         return
 
     cmd_enabled = conn.config.get('AUDIO_CORRECT', {}).get('cmd_enabled', False)
+    cmd_correct_status = get_cmd_correct_status(conn, text)
     en_ques_prompt = conn.config.get('AUDIO_CORRECT', {}).get('en_ques_prompt', '')
     auto_enabled = conn.config.get('AUDIO_CORRECT', {}).get('auto_enabled', False)
     score_pre = ''
-    if cmd_enabled:
+    if cmd_enabled and cmd_correct_status:
         # 交互打分
-        cmd_correct_status = get_cmd_correct_status(conn, text)
-        if cmd_correct_status:
-            print("处于交互式语音测评模式!")
-            score = await audio_correct(conn, text, False)
-            if score is not None:
-                score_pre = str(score) + ': '
-            # 意图未被处理，继续常规聊天流程
-            await send_stt_message(conn, score_pre + text)
-            if conn.use_function_call_mode:
-                conn.executor.submit(conn.chat_with_function_calling, en_ques_prompt)
-            else:
-                print("no_function_call: " + en_ques_prompt)
-                conn.executor.submit(conn.chat, en_ques_prompt)
-            return
+        print("处于交互式语音测评模式!")
+        score = await audio_correct(conn, text, False)
+        if score is not None:
+            score_pre = str(score) + ': '
+        # 意图未被处理，继续常规聊天流程
+        await send_stt_message(conn, score_pre + text)
+        if conn.use_function_call_mode:
+            conn.executor.submit(conn.chat_with_function_calling, en_ques_prompt)
+        else:
+            print("no_function_call: " + en_ques_prompt)
+            conn.executor.submit(conn.chat, en_ques_prompt)
+        return
     elif auto_enabled:
         # 自动英文口语打分
         score = await audio_correct(conn, text, True)
