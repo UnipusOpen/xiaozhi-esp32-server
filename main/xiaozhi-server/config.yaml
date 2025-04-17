@@ -599,7 +599,7 @@ TTS:
 AUDIO_CORRECT:
   # 是否开启自动式英语口语打分, 开启后自动对用户英语语音打分
   auto_enabled: true
-  # 是否开启交互式英语口语打分，开启后支持打分开启、结束命令，服务端自动出朗读文本
+  # 是否开启交互式英语口语打分，开启后支持打分开启、结束命令，服务端大模型生成英文朗读文本
   cmd_enabled: true
   start_prompt: 
     - "开始英语测评"
@@ -624,5 +624,5 @@ AUDIO_CORRECT:
   url: https://soetest.unipus.cn/api/correct
   # 口语打分鉴权串，试用账号有使用限制，请自行申请: https://open.unipus.cn/ 或邮箱咨询: openapi@unipus.cn
   auth: c2hpeW9uZzoxNzQ0Njk1ODg3ODUxOGZlMGEwZWRiNzZmNDc5ZDZjZTdjODFiYTQ0NzAwNTU=
-  en_ques_prompt: 给出一段新的英文文本，让用户跟读，以考察用户的口语水平。时长在5秒内，只返回英文文本，不要提示语、引导语等任何其他内容
+  en_ques_prompt: 生成一段新的英文文本，以便用户跟读，并考察用户的口语水平。时长在10秒内，只返回英文文本，不要提示语、引导语等任何其他内容
 
