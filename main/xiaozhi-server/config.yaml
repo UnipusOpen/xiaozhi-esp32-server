@@ -278,7 +278,7 @@ LLM:
     # 可在这里找到你的api key https://bigmodel.cn/usercenter/proj-mgmt/apikeys
     model_name: glm-4-flash
     url: https://open.bigmodel.cn/api/paas/v4/
-    api_key: f542c4a785bd4e5c96341d5e503e2744.POdJLFujWfbGKidL
+    api_key: 你的chat-glm web key
   OllamaLLM:
     # 定义LLM API类型
     type: ollama
@@ -595,34 +595,3 @@ TTS:
       # Authorization: Bearer xxxx
     format: wav # 接口返回的音频格式
     output_dir: tmp/
-
-AUDIO_CORRECT:
-  # 是否开启自动式英语口语打分, 开启后自动对用户英语语音打分
-  auto_enabled: true
-  # 是否开启交互式英语口语打分，开启后支持打分开启、结束命令，服务端大模型生成英文朗读文本
-  cmd_enabled: true
-  start_prompt: 
-    - "开始英语测评"
-    - "开始英语打分"
-    - "开始英语评测"
-    - "开始口语测评"
-    - "开始口语打分"
-    - "开始口语评测"
-    - "开始语音测评"
-    - "开始语音打分"
-    - "开始语音评测"
-  end_prompt:
-    - "结束英语测评"
-    - "结束英语打分"
-    - "结束英语评测"
-    - "结束口语测评"
-    - "结束口语打分"
-    - "结束口语评测"
-    - "结束语音测评"
-    - "结束语音打分"
-    - "结束语音评测"
-  url: https://soetest.unipus.cn/api/correct
-  # 口语打分鉴权串，试用账号有使用限制，请自行申请: https://open.unipus.cn/ 或邮箱咨询: openapi@unipus.cn
-  auth: c2hpeW9uZzoxNzQ0Njk1ODg3ODUxOGZlMGEwZWRiNzZmNDc5ZDZjZTdjODFiYTQ0NzAwNTU=
-  en_ques_prompt: 生成一段新的英文文本，以便用户跟读，并考察用户的口语水平。时长在10秒内，只返回英文文本，不要提示语、引导语等任何其他内容
-
