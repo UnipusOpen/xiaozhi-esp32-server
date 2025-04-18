@@ -74,4 +74,4 @@ class LLMProvider(LLMProviderBase):
 
         except Exception as e:
             logger.bind(tag=TAG).error(f"Error in function call streaming: {e}")
-            yield {"type": "content", "content": f"【OpenAI服务响应异常: {e}】"}
+            yield f"【OpenAI服务响应异常: {e}】", None

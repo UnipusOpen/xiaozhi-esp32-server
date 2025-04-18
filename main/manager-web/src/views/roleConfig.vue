@@ -68,6 +68,14 @@
                           class="form-input"
                       />
                     </el-form-item>
+                    <div class="action-bar">
+              <el-button type="primary" class="save-btn" @click="saveConfig">保存配置</el-button>
+              <el-button class="reset-btn" @click="resetConfig">重置</el-button>
+              <div class="hint-text">
+                <img loading="lazy" src="@/assets/home/red-info.png" alt="">
+                <span>保存配置后，需要重启设备，新的配置才会生效。</span>
+              </div>
+</div>
                   </div>
                   <div class="form-column">
                     <el-form-item
@@ -109,14 +117,6 @@
               </div>
             </el-form>
 
-            <div class="action-bar">
-              <el-button type="primary" class="save-btn" @click="saveConfig">保存配置</el-button>
-              <el-button class="reset-btn" @click="resetConfig">重置</el-button>
-              <div class="hint-text">
-                <img loading="lazy" src="@/assets/home/red-info.png" alt="">
-                <span>保存配置后，需要重启设备，新的配置才会生效。</span>
-              </div>
-            </div>
           </el-card>
         </div>
       </div>
@@ -426,7 +426,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 13px;
-  padding: 5px 0;
+  padding: 0 0 5px 0;
   font-weight: 700;
   font-size: 19px;
   color: #3d4566;
@@ -453,7 +453,7 @@ export default {
 }
 
 .form-content {
-  padding: 16px 0;
+  padding: 20px 0;
 }
 
 .form-grid {
@@ -465,6 +465,7 @@ export default {
 .form-column {
   display: flex;
   flex-direction: column;
+  gap: 6px;
 }
 
 .form-input {
@@ -505,24 +506,31 @@ export default {
 
 .action-bar {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  margin-top: 20px;
+  align-items: center;
 }
 
-.save-btn {
-  background: #5778ff;
-  color: white;
-  border: none;
-  border-radius: 18px;
-  padding: 10px 20px;
-}
+.action-bar {
+  .el-button.save-btn {
+    background: #5778ff;
+    color: white;
+    border: none;
+    border-radius: 18px;
+    padding: 10px 20px;
+    width: 100px;
+    height: 35px;
+    font-size: 14px;
+  }
 
-.reset-btn {
-  background: #e6ebff;
-  color: #5778ff;
-  border: 1px solid #adbdff;
-  border-radius: 18px;
-  padding: 10px 20px;
+  .el-button.reset-btn {
+    background: #e6ebff;
+    color: #5778ff;
+    border: 1px solid #adbdff;
+    border-radius: 18px;
+    padding: 10px 20px;
+  }
 }
 
 .hint-text {
