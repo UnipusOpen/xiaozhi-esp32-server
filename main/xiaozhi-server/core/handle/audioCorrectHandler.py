@@ -13,15 +13,9 @@ def get_cmd_correct_status(conn, text):
         conn.cmd_correct_status = False
         conn.last_text = ''
         return False
-
     return getattr(conn, 'cmd_correct_status', False)
 
 def simple_lang_detect(text):
-    """
-    简单的语种检测函数，用于判断文本是英文还是中文
-    :param text: 待检测的文本
-    :return: 'en' 表示英文，'zh' 表示中文，None 表示不支持的语言
-    """
     chinese_count = 0
     english_count = 0
 
@@ -40,11 +34,6 @@ def simple_lang_detect(text):
     return None
 
 def parse_overall_score(result):
-    """
-    从语音打分结果中解析出 unifyResult 里的 overall 总分
-    :param result: 语音打分结果
-    :return: overall 总分，如果解析失败则返回 None
-    """
     try:
         unify_result_str = result.get('data', {}).get('unifyResult')
         if unify_result_str is None:
