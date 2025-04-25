@@ -6,11 +6,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -18,9 +19,14 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 
 import cn.hutool.core.util.RandomUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import xiaozhi.common.constant.Constant;
 import xiaozhi.common.exception.RenException;
 import xiaozhi.common.page.PageData;
+import xiaozhi.common.redis.RedisKeys;
+import xiaozhi.common.redis.RedisUtils;
 import xiaozhi.common.service.impl.BaseServiceImpl;
 import xiaozhi.common.user.UserDetail;
 import xiaozhi.common.utils.ConvertUtils;
@@ -30,32 +36,24 @@ import xiaozhi.modules.device.dto.DevicePageUserDTO;
 import xiaozhi.modules.device.dto.DeviceReportReqDTO;
 import xiaozhi.modules.device.dto.DeviceReportRespDTO;
 import xiaozhi.modules.device.entity.DeviceEntity;
+import xiaozhi.modules.device.entity.OtaEntity;
 import xiaozhi.modules.device.service.DeviceService;
+import xiaozhi.modules.device.service.OtaService;
 import xiaozhi.modules.device.vo.UserShowDeviceListVO;
 import xiaozhi.modules.security.user.SecurityUser;
 import xiaozhi.modules.sys.service.SysParamsService;
 import xiaozhi.modules.sys.service.SysUserUtilService;
 
+@Slf4j
 @Service
+@AllArgsConstructor
 public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> implements DeviceService {
 
     private final DeviceDao deviceDao;
-
     private final SysUserUtilService sysUserUtilService;
-
-    private final String frontedUrl;
-
-    private final RedisTemplate<String, Object> redisTemplate;
-
-    // 添加构造函数来初始化 deviceMapper
-    public DeviceServiceImpl(DeviceDao deviceDao, SysUserUtilService sysUserUtilService,
-            SysParamsService sysParamsService,
-            RedisTemplate<String, Object> redisTemplate) {
-        this.deviceDao = deviceDao;
-        this.sysUserUtilService = sysUserUtilService;
-        this.frontedUrl = sysParamsService.getValue(Constant.SERVER_FRONTED_URL, true);
-        this.redisTemplate = redisTemplate;
-    }
+    private final SysParamsService sysParamsService;
+    private final RedisUtils redisUtils;
+    private final OtaService otaService;
 
     @Override
     public DeviceEntity getDeviceById(String deviceId) {
@@ -70,14 +68,14 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
             throw new RenException("激活码不能为空");
         }
         String deviceKey = "ota:activation:code:" + activationCode;
-        Object cacheDeviceId = redisTemplate.opsForValue().get(deviceKey);
+        Object cacheDeviceId = redisUtils.get(deviceKey);
         if (cacheDeviceId == null) {
             throw new RenException("激活码错误");
         }
         String deviceId = (String) cacheDeviceId;
         String safeDeviceId = deviceId.replace(":", "_").toLowerCase();
         String cacheDeviceKey = String.format("ota:activation:data:%s", safeDeviceId);
-        Map<Object, Object> cacheMap = redisTemplate.opsForHash().entries(cacheDeviceKey);
+        Map<String, Object> cacheMap = (Map<String, Object>) redisUtils.get(cacheDeviceKey);
         if (cacheMap == null) {
             throw new RenException("激活码错误");
         }
@@ -114,8 +112,8 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
         deviceDao.insert(deviceEntity);
 
         // 清理redis缓存
-        redisTemplate.delete(cacheDeviceKey);
-        redisTemplate.delete(deviceKey);
+        redisUtils.delete(cacheDeviceKey);
+        redisUtils.delete(deviceKey);
         return true;
     }
 
@@ -124,13 +122,31 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
             DeviceReportReqDTO deviceReport) {
         DeviceReportRespDTO response = new DeviceReportRespDTO();
         response.setServer_time(buildServerTime());
-        // todo: 此处是固件信息，目前是针对固件上传上来的版本号再返回回去
-        // 在未来开发了固件更新功能，需要更换此处代码，
-        // 或写定时任务定期请求虾哥的OTA，获取最新的版本讯息保存到服务内
-        DeviceReportRespDTO.Firmware firmware = new DeviceReportRespDTO.Firmware();
-        firmware.setVersion(deviceReport.getApplication().getVersion());
-        firmware.setUrl("http://localhost:8002/xiaozhi/ota/download");
+
+        String type = deviceReport.getBoard() == null ? null : deviceReport.getBoard().getType();
+        DeviceReportRespDTO.Firmware firmware = buildFirmwareInfo(type, macAddress);
         response.setFirmware(firmware);
+
+        // 添加WebSocket配置
+        DeviceReportRespDTO.Websocket websocket = new DeviceReportRespDTO.Websocket();
+        // 从系统参数获取WebSocket URL，如果未配置则使用默认值
+        String wsUrl = sysParamsService.getValue(Constant.SERVER_WEBSOCKET, true);
+        if (StringUtils.isBlank(wsUrl) || wsUrl.equals("null")) {
+            log.error("WebSocket URL is not configured");
+            wsUrl = "ws://xiaozhi.server.com:8000/xiaozhi/v1/";
+            websocket.setUrl(wsUrl);
+        } else {
+            String[] wsUrls = wsUrl.split("\\;");
+            if (wsUrls.length > 0) {
+                // 随机选择一个WebSocket URL
+                websocket.setUrl(wsUrls[RandomUtil.randomInt(0, wsUrls.length)]);
+            } else {
+                log.error("WebSocket URL list is empty");
+                websocket.setUrl("ws://xiaozhi.server.com:8000/xiaozhi/v1/");
+            }
+        }
+
+        response.setWebsocket(websocket);
 
         DeviceEntity deviceById = getDeviceById(macAddress);
         if (deviceById != null) { // 如果设备存在，则更新上次连接时间
@@ -229,7 +245,7 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
     public String geCodeByDeviceId(String deviceId) {
         String dataKey = getDeviceCacheKey(deviceId);
 
-        Map<Object, Object> cacheMap = redisTemplate.opsForHash().entries(dataKey);
+        Map<String, Object> cacheMap = (Map<String, Object>) redisUtils.get(dataKey);
         if (cacheMap != null && cacheMap.containsKey("activation_code")) {
             String cachedCode = (String) cacheMap.get("activation_code");
             return cachedCode;
@@ -250,18 +266,23 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
 
         if (StringUtils.isNotBlank(cachedCode)) {
             code.setCode(cachedCode);
+            String frontedUrl = sysParamsService.getValue(Constant.SERVER_FRONTED_URL, true);
             code.setMessage(frontedUrl + "\n" + cachedCode);
+            code.setChallenge(deviceId);
         } else {
             String newCode = RandomUtil.randomNumbers(6);
             code.setCode(newCode);
+            String frontedUrl = sysParamsService.getValue(Constant.SERVER_FRONTED_URL, true);
             code.setMessage(frontedUrl + "\n" + newCode);
+            code.setChallenge(deviceId);
 
             Map<String, Object> dataMap = new HashMap<>();
             dataMap.put("id", deviceId);
             dataMap.put("mac_address", deviceId);
 
-            dataMap.put("board", (deviceReport.getChipModelName() != null) ? deviceReport.getChipModelName()
-                    : (deviceReport.getBoard() != null ? deviceReport.getBoard().getType() : "unknown"));
+            dataMap.put("board", (deviceReport.getBoard() != null && deviceReport.getBoard().getType() != null)
+                    ? deviceReport.getBoard().getType()
+                    : (deviceReport.getChipModelName() != null ? deviceReport.getChipModelName() : "unknown"));
             dataMap.put("app_version", (deviceReport.getApplication() != null)
                     ? deviceReport.getApplication().getVersion()
                     : null);
@@ -271,13 +292,37 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
 
             // 写入主数据 key
             String dataKey = getDeviceCacheKey(deviceId);
-            redisTemplate.opsForHash().putAll(dataKey, dataMap);
-            redisTemplate.expire(dataKey, 24, TimeUnit.HOURS);
+            redisUtils.set(dataKey, dataMap);
 
             // 写入反查激活码 key
             String codeKey = "ota:activation:code:" + newCode;
-            redisTemplate.opsForValue().set(codeKey, deviceId, 24, TimeUnit.HOURS);
+            redisUtils.set(codeKey, deviceId);
         }
         return code;
+    }
+
+    private DeviceReportRespDTO.Firmware buildFirmwareInfo(String type, String macAddress) {
+        if (StringUtils.isBlank(type)) {
+            return null;
+        }
+
+        OtaEntity ota = otaService.getLatestOta(type);
+        DeviceReportRespDTO.Firmware firmware = new DeviceReportRespDTO.Firmware();
+        String downloadUrl = null;
+
+        if (ota != null) {
+            // 获取当前请求的URL
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+                    .getRequest();
+            String requestUrl = request.getRequestURL().toString();
+            // 将URL中的/ota/替换为/otaMag/download/
+            String uuid = UUID.randomUUID().toString();
+            redisUtils.set(RedisKeys.getOtaIdKey(uuid), ota.getId());
+            downloadUrl = requestUrl.replace("/ota/", "/otaMag/download/") + uuid;
+        }
+
+        firmware.setVersion(ota == null ? null : ota.getVersion());
+        firmware.setUrl(downloadUrl);
+        return firmware;
     }
 }

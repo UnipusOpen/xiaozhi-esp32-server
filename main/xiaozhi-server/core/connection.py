@@ -29,6 +29,7 @@ from core.auth import AuthMiddleware, AuthenticationError
 from core.mcp.manager import MCPManager
 from config.config_loader import get_private_config_from_api
 from config.manage_api_client import DeviceNotFoundException, DeviceBindException
+from core.utils.output_counter import add_device_output
 
 TAG = __name__
 
@@ -57,6 +58,7 @@ class ConnectionHandler:
         self.session_id = None
         self.prompt = None
         self.welcome_msg = None
+        self.max_output_size = 0
 
         # 客户端状态相关
         self.client_abort = False
@@ -223,13 +225,6 @@ class ConnectionHandler:
         self._initialize_memory()
         """加载意图识别"""
         self._initialize_intent()
-        """加载位置信息"""
-        self.client_ip_info = get_ip_info(self.client_ip, self.logger)
-        if self.client_ip_info is not None and "city" in self.client_ip_info:
-            self.logger.bind(tag=TAG).info(f"Client ip info: {self.client_ip_info}")
-            self.prompt = self.prompt + f"\nuser location:{self.client_ip_info}"
-
-            self.dialogue.update_system_message(self.prompt)
 
     def _initialize_private_config(self):
         read_config_from_api = self.config.get("read_config_from_api", False)
@@ -241,8 +236,8 @@ class ConnectionHandler:
             begin_time = time.time()
             private_config = get_private_config_from_api(
                 self.config,
-                self.headers.get("device-id", None),
-                self.headers.get("client-id", None),
+                self.headers.get("device-id"),
+                self.headers.get("client-id", self.headers.get("device-id")),
             )
             private_config["delete_audio"] = bool(self.config.get("delete_audio", True))
             self.logger.bind(tag=TAG).info(
@@ -315,7 +310,6 @@ class ConnectionHandler:
             self.config["selected_module"]["LLM"] = private_config["selected_module"][
                 "LLM"
             ]
-
         if private_config.get("Memory", None) is not None:
             init_memory = True
             self.config["Memory"] = private_config["Memory"]
@@ -328,6 +322,8 @@ class ConnectionHandler:
             self.config["selected_module"]["Intent"] = private_config[
                 "selected_module"
             ]["Intent"]
+        if private_config.get("device_max_output_size", None) is not None:
+            self.max_output_size = int(private_config["device_max_output_size"])
         try:
             modules = initialize_modules(
                 self.logger,
@@ -619,7 +615,7 @@ class ConnectionHandler:
                     )
             if not bHasError:
                 response_message.clear()
-                self.logger.bind(tag=TAG).info(
+                self.logger.bind(tag=TAG).debug(
                     f"function_name={function_name}, function_id={function_id}, function_arguments={function_arguments}"
                 )
                 function_call_data = {
@@ -845,6 +841,8 @@ class ConnectionHandler:
             self.logger.bind(tag=TAG).error(f"tts转换失败，{text}")
             return None, text, text_index
         self.logger.bind(tag=TAG).debug(f"TTS 文件生成完毕: {tts_file}")
+        if self.max_output_size > 0:
+            add_device_output(self.headers.get("device-id"), len(text))
         return tts_file, text, text_index
 
     def clearSpeakStatus(self):
@@ -880,7 +878,7 @@ class ConnectionHandler:
             self.executor = None
 
         # 清空任务队列
-        self._clear_queues()
+        self.clear_queues()
 
         if ws:
             await ws.close()
@@ -888,8 +886,11 @@ class ConnectionHandler:
             await self.websocket.close()
         self.logger.bind(tag=TAG).info("连接资源已释放")
 
-    def _clear_queues(self):
+    def clear_queues(self):
         # 清空所有任务队列
+        self.logger.bind(tag=TAG).info(
+            f"开始清理: TTS队列大小={self.tts_queue.qsize()}, 音频队列大小={self.audio_play_queue.qsize()}"
+        )
         for q in [self.tts_queue, self.audio_play_queue]:
             if not q:
                 continue
@@ -901,6 +902,9 @@ class ConnectionHandler:
             q.queue.clear()
             # 添加毒丸信号到队列，确保线程退出
             # q.queue.put(None)
+        self.logger.bind(tag=TAG).info(
+            f"清理结束: TTS队列大小={self.tts_queue.qsize()}, 音频队列大小={self.audio_play_queue.qsize()}"
+        )
 
     def reset_vad_states(self):
         self.client_audio_buffer = bytearray()
