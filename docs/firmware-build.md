@@ -1,14 +1,31 @@
 # esp32固件编译
 
 ## 第1步 准备你的ota地址
-如果你按照教程使用的是全模块部署，就应该会有ota地址。
 
+如果你，使用的是本项目0.3.12版本，不管是简单Server部署还是全模块部署，都会有ota地址。
+
+由于简单Server部署和全模块部署的OTA地址设置方式不一样，请你选择下面的具体方式：
+
+### 如果你用的是简单Server部署
+此刻，请你用浏览器打开你的ota地址，例如我的ota地址
+```
+http://192.168.1.25:8002/xiaozhi/ota/
+```
+如果显示“OTA接口运行正常，向设备发送的websocket地址是：ws://xxx:8000/xiaozhi/v1/
+
+你可以使用项目自带的`test_page.html`测试一下，是否能连上ota页面输出的websocket地址。
+
+如果访问不到，你需要到配置文件`.config.yaml`里修改`server.websocket`的地址，重启后再重新测试，直到`test_page.html`能正常访问。
+
+成功后，请往下进行第2步
+
+### 如果你用的是全模块部署
 此刻，请你用浏览器打开你的ota地址，例如我的ota地址
 ```
 http://192.168.1.25:8002/xiaozhi/ota/
 ```
 
-如果显示“OTA接口运行正常，websocket集群数量：X”。那就往下。
+如果显示“OTA接口运行正常，websocket集群数量：X”。那就往下进行2步。
 
 如果显示“OTA接口运行不正常”，大概是你还没在`智控台`配置`Websocket`地址。那就：
 
@@ -36,24 +53,24 @@ ws://192.168.1.25:8000/xiaozhi/v1/
 
 ## 第4步 修改OTA地址
 
-找到`OTA_VERSION_URL`的`default`的内容，把`https://api.tenclass.net/xiaozhi/ota/`
+找到`OTA_URL`的`default`的内容，把`https://api.tenclass.net/xiaozhi/ota/`
    改成你自己的地址，例如，我的接口地址是`http://192.168.1.25:8002/xiaozhi/ota/`，就把内容改成这个。
 
 修改前：
 ```
-config OTA_VERSION_URL
-    string "OTA Version URL"
+config OTA_URL
+    string "Default OTA URL"
     default "https://api.tenclass.net/xiaozhi/ota/"
     help
-        The application will access this URL to check for updates.
+        The application will access this URL to check for new firmwares and server address.
 ```
 修改后：
 ```
-config OTA_VERSION_URL
-    string "OTA Version URL"
+config OTA_URL
+    string "Default OTA URL"
     default "http://192.168.1.25:8002/xiaozhi/ota/"
     help
-        The application will access this URL to check for updates.
+        The application will access this URL to check for new firmwares and server address.
 ```
 
 ## 第4步 设置编译参数
@@ -83,12 +100,6 @@ idf.py menuconfig
 idf.py build
 ```
 
-如果是vscode安装的idf可以使用`F1`或者`ctrl+shift+p`,输入idf然后直接选择进行编译
-
-还可以直接进行烧录不用接下来的操作
-
-<img src="./images/vscode_idf.png" width="500px"/>
-
 ## 第6步 打包bin固件
 
 ```
@@ -96,7 +107,7 @@ cd scripts
 python release.py
 ```
 
-编译成功后，会在项目根目录下的`build`目录下生成固件文件`merged-binary.bin`。
+上面的打包命令执行完成后，会在项目根目录下的`build`目录下生成固件文件`merged-binary.bin`。
 这个`merged-binary.bin`就是要烧录到硬件上的固件文件。
 
 注意：如果执行到第二命令后，报了“zip”相关的错误，请忽略这个错误，只要`build`目录下生成固件文件`merged-binary.bin`

@@ -240,7 +240,7 @@ selected_module:
   LLM: ChatGLMLLM
   TTS: EdgeTTS
   # 默认不开启记忆，如需开启请看配置文件里的描述
-  Memory: nomem   
+  Memory: nomem
   # 默认不开启意图识别，如需开启请看配置文件里的描述
   Intent: nointent
 ```
@@ -276,21 +276,26 @@ LLM:
 如果你能看到，类似以下日志,则是本项目服务启动成功的标志。
 
 ```
-25-02-23 12:01:09[core.websocket_server] - INFO - Server is running at ws://xxx.xx.xx.xx:8000/xiaozhi/v1/
-25-02-23 12:01:09[core.websocket_server] - INFO - =======上面的地址是websocket协议地址，请勿用浏览器访问=======
-25-02-23 12:01:09[core.websocket_server] - INFO - 如想测试websocket请用谷歌浏览器打开test目录下的test_page.html
-25-02-23 12:01:09[core.websocket_server] - INFO - =======================================================
+250427 13:04:20[0.3.11_SiFuChTTnofu][__main__]-INFO-OTA接口是           http://192.168.4.123:8002/xiaozhi/ota/
+250427 13:04:20[0.3.11_SiFuChTTnofu][__main__]-INFO-Websocket地址是     ws://192.168.4.123:8000/xiaozhi/v1/
+250427 13:04:20[0.3.11_SiFuChTTnofu][__main__]-INFO-=======上面的地址是websocket协议地址，请勿用浏览器访问=======
+250427 13:04:20[0.3.11_SiFuChTTnofu][__main__]-INFO-如想测试websocket请用谷歌浏览器打开test目录下的test_page.html
+250427 13:04:20[0.3.11_SiFuChTTnofu][__main__]-INFO-=======================================================
 ```
 
 正常来说，如果您是通过源码运行本项目，日志会有你的接口地址信息。
 但是如果你用docker部署，那么你的日志里给出的接口地址信息就不是真实的接口地址。
 
 最正确的方法，是根据电脑的局域网IP来确定你的接口地址。
-如果你的电脑的局域网IP比如是`192.168.1.25`，那么你的接口地址就是：`ws://192.168.1.25:8000/xiaozhi/v1/`。
+如果你的电脑的局域网IP比如是`192.168.1.25`，那么你的接口地址就是：`ws://192.168.1.25:8000/xiaozhi/v1/`，对应的OTA地址就是：`http://192.168.1.25:8002/xiaozhi/ota/`。
 
 这个信息很有用的，后面`编译esp32固件`需要用到。
 
-接下来，你就可以开始 [编译1.6.0版本esp32固件](firmware-build.md)了。
+接下来，你就可以开始操作你的esp32设备了，你可以`自行编译esp32固件`也可以配置使用`虾哥编译好的1.6.1以上版本的固件`。两个任选一个
+
+1、 [编译自己的esp32固件](firmware-build.md)了。
+
+2、 [基于虾哥编译好的固件配置自定义服务器](firmware-setting.md)了。
 
 
 以下是一些常见问题，供参考：

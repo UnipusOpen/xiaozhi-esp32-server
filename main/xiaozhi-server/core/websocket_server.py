@@ -2,7 +2,7 @@ import asyncio
 import websockets
 from config.logger import setup_logging
 from core.connection import ConnectionHandler
-from core.utils.util import get_local_ip, initialize_modules
+from core.utils.util import initialize_modules
 
 TAG = __name__
 
@@ -27,19 +27,9 @@ class WebSocketServer:
         host = server_config.get("ip", "0.0.0.0")
         port = int(server_config.get("port", 8000))
 
-        self.logger.bind(tag=TAG).info(
-            "Server is running at ws://{}:{}/xiaozhi/v1/", get_local_ip(), port
-        )
-        self.logger.bind(tag=TAG).info(
-            "=======上面的地址是websocket协议地址，请勿用浏览器访问======="
-        )
-        self.logger.bind(tag=TAG).info(
-            "如想测试websocket请用谷歌浏览器打开test目录下的test_page.html"
-        )
-        self.logger.bind(tag=TAG).info(
-            "=============================================================\n"
-        )
-        async with websockets.serve(self._handle_connection, host, port):
+        async with websockets.serve(
+            self._handle_connection, host, port, process_request=self._http_response
+        ):
             await asyncio.Future()
 
     async def _handle_connection(self, websocket):
@@ -59,3 +49,12 @@ class WebSocketServer:
             await handler.handle_connection(websocket)
         finally:
             self.active_connections.discard(handler)
+
+    async def _http_response(self, websocket, request_headers):
+        # 检查是否为 WebSocket 升级请求
+        if request_headers.headers.get("connection", "").lower() == "upgrade":
+            # 如果是 WebSocket 请求，返回 None 允许握手继续
+            return None
+        else:
+            # 如果是普通 HTTP 请求，返回 "server is running"
+            return websocket.respond(200, "Server is running\n")

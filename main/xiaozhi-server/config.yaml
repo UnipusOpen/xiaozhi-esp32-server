@@ -9,6 +9,15 @@ server:
   # 服务器监听地址和端口(Server listening address and port)
   ip: 0.0.0.0
   port: 8000
+  # OTA接口的端口号
+  ota_port: 8002
+  # 这个websocket配置是指ota接口向设备发送的websocket地址
+  # 如果按默认的写法，ota接口会自动生成websocket地址。这个地址你可以直接用浏览器访问ota接口确认一下
+  # 当你使用docker部署或使用公网部署(使用ssl、域名)时，不一定准确
+  # 所以如果你使用docker部署或使用公网部署时，请设置正确的websocket地址
+  websocket: ws://你的ip或者域名:端口号/xiaozhi/v1/
+  # OTA返回信息时区偏移量
+  timezone_offset: +8
   # 认证配置
   auth:
     # 是否启用认证
@@ -239,8 +248,8 @@ LLM:
     api_key: 你的deepseek web key
     temperature: 0.7  # 温度值
     max_tokens: 500   # 最大生成token数
-    top_p: 1         
-    top_k: 50        
+    top_p: 1
+    top_k: 50
     frequency_penalty: 0  # 频率惩罚
   AliAppLLM:
     # 定义LLM API类型
@@ -249,7 +258,7 @@ LLM:
     app_id: 你的app_id
     # 可在这里找到你的 api_key https://bailian.console.aliyun.com/?apiKey=1#/api-key
     api_key: 你的api_key
-    # 是否不使用本地prompt：true|false (默不用请在百练应用中设置prompt) 
+    # 是否不使用本地prompt：true|false (默不用请在百练应用中设置prompt)
     is_no_prompt: true
     # Ali_memory_id：false（不使用）|你的memory_id（请在百练应用中设置中获取）
     # Tips！：Ali_memory未实现多用户存储记忆(记忆按id调用)
