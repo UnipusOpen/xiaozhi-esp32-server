@@ -21,9 +21,7 @@ import xiaozhi.common.redis.RedisUtils;
 import xiaozhi.common.service.impl.BaseServiceImpl;
 import xiaozhi.common.utils.ConvertUtils;
 import xiaozhi.modules.agent.dao.AgentDao;
-import xiaozhi.modules.agent.dao.AgentTemplateDao;
 import xiaozhi.modules.agent.entity.AgentEntity;
-import xiaozhi.modules.agent.service.AgentTemplateService;
 import xiaozhi.modules.model.dao.ModelConfigDao;
 import xiaozhi.modules.model.dto.ModelBasicInfoDTO;
 import xiaozhi.modules.model.dto.ModelConfigBodyDTO;
@@ -41,8 +39,6 @@ public class ModelConfigServiceImpl extends BaseServiceImpl<ModelConfigDao, Mode
     private final ModelConfigDao modelConfigDao;
     private final ModelProviderService modelProviderService;
     private final RedisUtils redisUtils;
-    private final AgentTemplateDao agentTemplateDao;
-    private final AgentTemplateService agentTemplateService;
     private final AgentDao agentDao;
 
     @Override

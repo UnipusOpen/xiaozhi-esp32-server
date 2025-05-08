@@ -5,10 +5,8 @@ from core.handle.sendAudioHandle import send_stt_message
 from core.handle.helloHandle import checkWakeupWords
 from core.utils.util import remove_punctuation_and_length
 from core.utils.dialogue import Message
-from loguru import logger
 
 TAG = __name__
-logger = setup_logging()
 
 
 async def handle_user_intent(conn, text):
@@ -36,7 +34,7 @@ async def check_direct_exit(conn, text):
     cmd_exit = conn.cmd_exit
     for cmd in cmd_exit:
         if text == cmd:
-            logger.bind(tag=TAG).info(f"识别到明确的退出命令: {text}")
+            conn.logger.bind(tag=TAG).info(f"识别到明确的退出命令: {text}")
             await send_stt_message(conn, text)
             await conn.close()
             return True
@@ -46,7 +44,7 @@ async def check_direct_exit(conn, text):
 async def analyze_intent_with_llm(conn, text):
     """使用LLM分析用户意图"""
     if not hasattr(conn, "intent") or not conn.intent:
-        logger.bind(tag=TAG).warning("意图识别服务未初始化")
+        conn.logger.bind(tag=TAG).warning("意图识别服务未初始化")
         return None
 
     # 对话历史记录
@@ -55,7 +53,7 @@ async def analyze_intent_with_llm(conn, text):
         intent_result = await conn.intent.detect_intent(conn, dialogue.dialogue, text)
         return intent_result
     except Exception as e:
-        logger.bind(tag=TAG).error(f"意图识别失败: {str(e)}")
+        conn.logger.bind(tag=TAG).error(f"意图识别失败: {str(e)}")
 
     return None
 
@@ -69,7 +67,7 @@ async def process_intent_result(conn, intent_result, original_text):
         # 检查是否有function_call
         if "function_call" in intent_data:
             # 直接从意图识别获取了function_call
-            logger.bind(tag=TAG).debug(
+            conn.logger.bind(tag=TAG).debug(
                 f"检测到function_call格式的意图结果: {intent_data['function_call']['name']}"
             )
             function_name = intent_data["function_call"]["name"]
@@ -118,7 +116,7 @@ async def process_intent_result(conn, intent_result, original_text):
                             conn.speak_and_play, text, text_index
                         )
                         conn.llm_finish_task = True
-                        conn.tts_queue.put(future)
+                        conn.tts_queue.put((future, text_index))
                         conn.dialogue.put(Message(role="assistant", content=text))
 
             # 将函数执行放在线程池中
@@ -126,7 +124,7 @@ async def process_intent_result(conn, intent_result, original_text):
             return True
         return False
     except json.JSONDecodeError as e:
-        logger.bind(tag=TAG).error(f"处理意图结果时出错: {e}")
+        conn.logger.bind(tag=TAG).error(f"处理意图结果时出错: {e}")
         return False
 
 

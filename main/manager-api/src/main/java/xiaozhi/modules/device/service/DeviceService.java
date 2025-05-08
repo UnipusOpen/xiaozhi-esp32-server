@@ -1,5 +1,6 @@
 package xiaozhi.modules.device.service;
 
+import java.util.Date;
 import java.util.List;
 
 import xiaozhi.common.page.PageData;
@@ -78,4 +79,13 @@ public interface DeviceService extends BaseService<DeviceEntity> {
      * @return 激活码
      */
     String geCodeByDeviceId(String deviceId);
+
+    /**
+     * 获取这个智能体设备理的最近的最后连接时间
+     * @param agentId 智能体id
+     * @return 返回设备最近的最后连接时间
+     */
+    Date getLatestLastConnectionTime(String agentId);
+
+
 }

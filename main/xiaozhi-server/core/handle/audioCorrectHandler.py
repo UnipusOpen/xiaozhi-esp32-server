@@ -1,6 +1,9 @@
 import json
 import aiohttp
 import base64
+import wave
+import numpy as np
+import opuslib
 
 def get_cmd_correct_status(conn, text):
     start_prompts = conn.config.get('AUDIO_CORRECT', {}).get('start_prompt', [])
@@ -63,6 +66,8 @@ async def audio_correct(conn, text, auto):
             print("交互口语测评音频数据或上次文本为空，不进行测评!")
             return None
 
+    save_opus_to_wav(conn.asr_audio, "D:\tmp\test.wav", 16000, 1)
+
     try:
         lang = simple_lang_detect(real_text)
         if lang == 'en':
@@ -116,3 +121,88 @@ async def audio_correct(conn, text, auto):
             else:
                 print(f"请求失败，状态码: {response.status}")
                 return None
+
+
+def save_opus_to_wav(opus_data, output_file, sample_rate=16000, channels=1):
+    """
+    将Opus音频数据解码并保存为WAV文件
+    
+    参数:
+    opus_data: 二进制Opus数据
+    output_file: 输出WAV文件路径
+    sample_rate: 采样率，默认16kHz
+    channels: 声道数，默认单声道
+    """
+    try:
+        # 确保opus_data是字节类型
+        if isinstance(opus_data, list):
+            if all(isinstance(item, str) for item in opus_data):
+                opus_data = ''.join(opus_data).encode('utf-8')
+            elif all(isinstance(item, bytes) for item in opus_data):
+                opus_data = b''.join(opus_data)
+            else:
+                print("opus_data 列表元素类型不支持")
+                return False
+        elif isinstance(opus_data, str):
+            opus_data = opus_data.encode('utf-8')
+        elif not isinstance(opus_data, bytes):
+            print("opus_data 类型不支持，需要字节类型")
+            return False
+
+        # 检查opus_data是否为空
+        if len(opus_data) == 0:
+            print("Opus数据为空，无法解码")
+            return False
+
+        # 初始化解码器
+        decoder = opuslib.Decoder(sample_rate, channels)
+        
+        # 定义frame_size，这里假设一个常见的值，可根据实际情况调整
+        frame_size = 960
+        
+        # 分帧解码
+        pcm_data_list = []
+        offset = 0
+        while offset < len(opus_data):
+            try:
+                # 尝试找到一个可能的帧
+                max_frame_size = min(len(opus_data) - offset, 4000)  # Opus帧最大长度通常不超过4000字节
+                for frame_len in range(max_frame_size, 0, -1):
+                    try:
+                        frame = opus_data[offset:offset + frame_len]
+                        pcm_frame = decoder.decode(frame, frame_size)
+                        pcm_data_list.append(pcm_frame)
+                        offset += frame_len
+                        break
+                    except opuslib.OpusError:
+                        continue
+                else:
+                    print("无法找到有效的Opus帧，数据可能损坏")
+                    return False
+            except opuslib.OpusError as opus_error:
+                print(f"Opus解码出错: {opus_error}")
+                return False
+
+        # 合并所有PCM数据
+        pcm_data = b''.join(pcm_data_list)
+        
+        # 检查解码后的PCM数据是否为空
+        if len(pcm_data) == 0:
+            print("解码后的PCM数据为空，无法保存为WAV文件")
+            return False
+
+        # 将PCM数据转换为numpy数组
+        pcm_array = np.frombuffer(pcm_data, dtype=np.int16)
+        
+        # 创建WAV文件
+        with wave.open(output_file, 'wb') as wav_file:
+            wav_file.setnchannels(channels)
+            wav_file.setsampwidth(2)  # 16位音频
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(pcm_array.tobytes())
+            
+        print(f"已成功保存WAV文件: {output_file}")
+        return True
+    except Exception as e:
+        print(f"保存WAV文件失败: {e}")
+        return False

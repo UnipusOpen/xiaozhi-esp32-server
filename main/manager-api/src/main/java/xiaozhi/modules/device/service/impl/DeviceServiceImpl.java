@@ -258,6 +258,20 @@ public class DeviceServiceImpl extends BaseServiceImpl<DeviceDao, DeviceEntity> 
         return null;
     }
 
+    @Override
+    public Date getLatestLastConnectionTime(String agentId) {
+        // 查询是否有缓存时间，有则返回
+        Date cachedDate = (Date) redisUtils.get(RedisKeys.getAgentDeviceLastConnectedAtById(agentId));
+        if (cachedDate != null) {
+            return cachedDate;
+        }
+        Date maxDate = deviceDao.getAllLastConnectedAtByAgentId(agentId);
+        if (maxDate != null) {
+            redisUtils.set(RedisKeys.getAgentDeviceLastConnectedAtById(agentId), maxDate);
+        }
+        return maxDate;
+    }
+
     private String getDeviceCacheKey(String deviceId) {
         String safeDeviceId = deviceId.replace(":", "_").toLowerCase();
         String dataKey = String.format("ota:activation:data:%s", safeDeviceId);

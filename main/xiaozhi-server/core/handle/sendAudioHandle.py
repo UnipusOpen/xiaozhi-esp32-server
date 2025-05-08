@@ -1,4 +1,3 @@
-from config.logger import setup_logging
 import json
 import asyncio
 import time
@@ -7,58 +6,63 @@ from core.utils.util import (
     analyze_emotion
 )
 from core.handle.audioCorrectHandler import get_cmd_correct_status
+from core.utils.util import get_string_no_punctuation_or_emoji, analyze_emotion
 
 TAG = __name__
-logger = setup_logging()
 
 emoji_map = {
-    'neutral': '😶',
-    'happy': '🙂',
-    'laughing': '😆',
-    'funny': '😂',
-    'sad': '😔',
-    'angry': '😠',
-    'crying': '😭',
-    'loving': '😍',
-    'embarrassed': '😳',
-    'surprised': '😲',
-    'shocked': '😱',
-    'thinking': '🤔',
-    'winking': '😉',
-    'cool': '😎',
-    'relaxed': '😌',
-    'delicious': '🤤',
-    'kissy': '😘',
-    'confident': '😏',
-    'sleepy': '😴',
-    'silly': '😜',
-    'confused': '🙄'
+    "neutral": "😶",
+    "happy": "🙂",
+    "laughing": "😆",
+    "funny": "😂",
+    "sad": "😔",
+    "angry": "😠",
+    "crying": "😭",
+    "loving": "😍",
+    "embarrassed": "😳",
+    "surprised": "😲",
+    "shocked": "😱",
+    "thinking": "🤔",
+    "winking": "😉",
+    "cool": "😎",
+    "relaxed": "😌",
+    "delicious": "🤤",
+    "kissy": "😘",
+    "confident": "😏",
+    "sleepy": "😴",
+    "silly": "😜",
+    "confused": "🙄",
 }
+
 
 async def sendAudioMessage(conn, audios, text, text_index=0):
     # 发送句子开始消息
-    emotion = analyze_emotion(text)
-    emoji = emoji_map.get(emotion, '🙂')  # 默认使用笑脸
-    await conn.websocket.send(json.dumps(
-            {
-                "type": "llm",
-                "text": emoji,
-                "emotion": emotion,
-                "session_id": conn.session_id,
-            }
+    if text is not None:
+        emotion = analyze_emotion(text)
+        emoji = emoji_map.get(emotion, "🙂")  # 默认使用笑脸
+        await conn.websocket.send(
+            json.dumps(
+                {
+                    "type": "llm",
+                    "text": emoji,
+                    "emotion": emotion,
+                    "session_id": conn.session_id,
+                }
+            )
         )
-    )
+
     if text_index == conn.tts_first_text_index:
-        logger.bind(tag=TAG).info(f"发送第一段语音: {text}")
+        conn.logger.bind(tag=TAG).info(f"发送第一段语音: {text}")
     # 记录文本
     cmd_correct_status = get_cmd_correct_status(conn, '')
     if cmd_correct_status:
         conn.last_text = text
         text = '请朗读: ' + text
+        conn.logger.bind(tag=TAG).info(f"发送第一段语音: {text}")
     await send_tts_message(conn, "sentence_start", text)
 
-    # 播放音频
-    await sendAudio(conn, audios)
+    is_first_audio = text_index == conn.tts_first_text_index
+    await sendAudio(conn, audios, pre_buffer=is_first_audio)
 
     await send_tts_message(conn, "sentence_end", text)
 
@@ -70,21 +74,31 @@ async def sendAudioMessage(conn, audios, text, text_index=0):
 
 
 # 播放音频
-async def sendAudio(conn, audios):
+async def sendAudio(conn, audios, pre_buffer=True):
     # 流控参数优化
     frame_duration = 60  # 帧时长（毫秒），匹配 Opus 编码
     start_time = time.perf_counter()
     play_position = 0
+    last_reset_time = time.perf_counter()  # 记录最后的重置时间
 
-    # 预缓冲：发送前 3 帧
-    pre_buffer = min(3, len(audios))
-    for i in range(pre_buffer):
-        await conn.websocket.send(audios[i])
+    # 仅当第一句话时执行预缓冲
+    if pre_buffer:
+        pre_buffer_frames = min(3, len(audios))
+        for i in range(pre_buffer_frames):
+            await conn.websocket.send(audios[i])
+        remaining_audios = audios[pre_buffer_frames:]
+    else:
+        remaining_audios = audios
 
-    # 正常播放剩余帧
-    for opus_packet in audios[pre_buffer:]:
+    # 播放剩余音频帧
+    for opus_packet in remaining_audios:
         if conn.client_abort:
             return
+
+        # 每分钟重置一次计时器
+        if time.perf_counter() - last_reset_time > 60:
+            await conn.reset_timeout()
+            last_reset_time = time.perf_counter()
 
         # 计算预期发送时间
         expected_time = start_time + (play_position / 1000)
