@@ -7,7 +7,7 @@ from core.utils.output_counter import check_device_output_limit
 from core.handle.audioCorrectHandler import audio_correct, get_cmd_correct_status
 
 from core.handle.ttsReportHandle import enqueue_tts_report
-from core.providers.tts.base import audio_to_opus_data
+from core.utils.util import audio_to_data
 
 TAG = __name__
 
@@ -163,7 +163,7 @@ async def max_out_size(conn):
     conn.tts_last_text_index = 0
     conn.llm_finish_task = True
     file_path = "config/assets/max_output_size.wav"
-    opus_packets, _ = audio_to_opus_data(file_path)
+    opus_packets, _ = audio_to_data(file_path)
     conn.audio_play_queue.put((opus_packets, text, 0))
     conn.close_after_chat = True
 
@@ -185,7 +185,7 @@ async def check_bind_device(conn):
 
         # 播放提示音
         music_path = "config/assets/bind_code.wav"
-        opus_packets, _ = audio_to_opus_data(music_path)
+        opus_packets, _ = audio_to_data(music_path)
         conn.audio_play_queue.put((opus_packets, text, 0))
 
         # 逐个播放数字
@@ -193,7 +193,7 @@ async def check_bind_device(conn):
             try:
                 digit = conn.bind_code[i]
                 num_path = f"config/assets/bind_code/{digit}.wav"
-                num_packets, _ = audio_to_opus_data(num_path)
+                num_packets, _ = audio_to_data(num_path)
                 conn.audio_play_queue.put((num_packets, None, i + 1))
             except Exception as e:
                 conn.logger.bind(tag=TAG).error(f"播放数字音频失败: {e}")
@@ -205,5 +205,5 @@ async def check_bind_device(conn):
         conn.tts_last_text_index = 0
         conn.llm_finish_task = True
         music_path = "config/assets/bind_not_found.wav"
-        opus_packets, _ = audio_to_opus_data(music_path)
+        opus_packets, _ = audio_to_data(music_path)
         conn.audio_play_queue.put((opus_packets, text, 0))

@@ -3,7 +3,7 @@ from config.logger import setup_logging
 import os
 from abc import ABC, abstractmethod
 from core.utils.tts import MarkdownCleaner
-from core.utils.util import audio_to_opus_data
+from core.utils.util import audio_to_data
 
 TAG = __name__
 logger = setup_logging()
@@ -53,5 +53,10 @@ class TTSProviderBase(ABC):
     async def text_to_speak(self, text, output_file):
         pass
 
+    def audio_to_pcm_data(self, audio_file_path):
+        """音频文件转换为PCM编码"""
+        return audio_to_data(audio_file_path, is_opus=False)
+
     def audio_to_opus_data(self, audio_file_path):
-        return audio_to_opus_data(audio_file_path)
+        """音频文件转换为Opus编码"""
+        return audio_to_data(audio_file_path, is_opus=True)
