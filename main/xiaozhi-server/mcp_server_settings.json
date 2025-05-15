@@ -7,6 +7,15 @@
     "当前支持stdio/sse两种模式。"
   ],
   "mcpServers": {
+    "Home Assistant": {
+      "command": "mcp-proxy",
+      "args": [
+        "http://YOUR_HA_HOST/mcp_server/sse"
+      ],
+      "env": {
+        "API_ACCESS_TOKEN": "YOUR_API_ACCESS_TOKEN"
+      }
+    },
     "filesystem": {
       "command": "npx",
       "args": [

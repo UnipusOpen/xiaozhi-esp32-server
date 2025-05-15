@@ -7,6 +7,7 @@ from core.ota_server import SimpleOtaServer
 from core.utils.util import check_ffmpeg_installed
 from config.logger import setup_logging
 from core.utils.util import get_local_ip
+from aioconsole import ainput
 
 TAG = __name__
 logger = setup_logging()
@@ -34,9 +35,18 @@ async def wait_for_exit() -> None:
             pass
 
 
+async def monitor_stdin():
+    """监控标准输入，消费回车键"""
+    while True:
+        await ainput()  # 异步等待输入，消费回车
+
+
 async def main():
     check_ffmpeg_installed()
     config = load_config()
+
+    # 添加 stdin 监控任务
+    stdin_task = asyncio.create_task(monitor_stdin())
 
     # 启动 WebSocket 服务器
     ws_server = WebSocketServer(config)
@@ -78,19 +88,22 @@ async def main():
     )
 
     try:
-        await wait_for_exit()  # 监听退出信号
+        await wait_for_exit()  # 阻塞直到收到退出信号
     except asyncio.CancelledError:
         print("任务被取消，清理资源中...")
     finally:
+        # 取消所有任务（关键修复点）
+        stdin_task.cancel()
         ws_task.cancel()
         if ota_task:
             ota_task.cancel()
-        try:
-            await ws_task
-            if ota_task:
-                await ota_task
-        except asyncio.CancelledError:
-            pass
+
+        # 等待任务终止（必须加超时）
+        await asyncio.wait(
+            [stdin_task, ws_task, ota_task] if ota_task else [stdin_task, ws_task],
+            timeout=3.0,
+            return_when=asyncio.ALL_COMPLETED
+        )
         print("服务器已关闭，程序退出。")
 
 

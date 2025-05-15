@@ -33,7 +33,13 @@ class Dialogue:
             dialogue.append({"role": m.role, "tool_calls": m.tool_calls})
         elif m.role == "tool":
             dialogue.append(
-                {"role": m.role, "tool_call_id": m.tool_call_id, "content": m.content}
+                {
+                    "role": m.role,
+                    "tool_call_id": (
+                        str(uuid.uuid4()) if m.tool_call_id is None else m.tool_call_id
+                    ),
+                    "content": m.content,
+                }
             )
         else:
             dialogue.append({"role": m.role, "content": m.content})
@@ -69,7 +75,8 @@ class Dialogue:
 
         if system_message:
             enhanced_system_prompt = (
-                f"{system_message.content}\n\n" f"相关记忆：\n{memory_str}"
+                f"{system_message.content}\n\n"
+                f"以下是用户的历史记忆：\n```\n{memory_str}\n```"
             )
             dialogue.append({"role": "system", "content": enhanced_system_prompt})
 

@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :title="title" :visible.sync="visible" width="500px" @close="handleClose" @open="handleOpen">
+  <el-dialog :title="title" :visible.sync="dialogVisible" @close="handleClose" @open="handleOpen">
     <el-form ref="form" :model="form" :rules="rules" label-width="100px">
       <el-form-item label="固件名称" prop="firmwareName">
         <el-input v-model="form.firmwareName" placeholder="请输入固件名称(板子+版本号)"></el-input>
@@ -22,7 +22,7 @@
         <el-progress v-if="isUploading || uploadStatus === 'success'" :percentage="uploadProgress"
           :status="uploadStatus"></el-progress>
         <div class="hint-text">
-          <span>温馨提示：请上传xiaozhi.bin文件，而不是merged-binary.bin文件</span>
+          <span>温馨提示：请上传合并前的xiaozhi.bin文件，而不是合并后的merged-binary.bin文件</span>
         </div>
       </el-form-item>
       <el-form-item label="备注" prop="remark">
@@ -59,11 +59,13 @@ export default {
       default: () => []
     }
   },
+
   data() {
     return {
       uploadProgress: 0,
       uploadStatus: '',
       isUploading: false,
+      dialogVisible: this.visible,
       rules: {
         firmwareName: [
           { required: true, message: '请输入固件名称(板子+版本号)', trigger: 'blur' }
@@ -90,10 +92,18 @@ export default {
   created() {
     // 移除 getDictDataByType 调用
   },
+  watch: {
+    visible(val) {
+      this.dialogVisible = val;
+    },
+    dialogVisible(val) {
+      this.$emit('update:visible', val);
+    },
+  },
   methods: {
     // 移除 getFirmwareTypes 方法
     handleClose() {
-      this.$refs.form.clearValidate();
+      this.dialogVisible = false;
       this.$emit('cancel');
     },
     handleCancel() {
@@ -188,26 +198,30 @@ export default {
       if (!this.form.id) {  // 只在新增时重置
         this.form.firmwarePath = ''
         this.form.size = 0
-        // 重置上传组件
-        this.$nextTick(() => {
-          if (this.$refs.upload) {
-            this.$refs.upload.clearFiles()
-          }
-        })
       }
+      // 无论是否编辑模式，都重置上传组件
+      this.$nextTick(() => {
+        if (this.$refs.upload) {
+          this.$refs.upload.clearFiles()
+        }
+      })
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
+::v-deep .el-dialog {
+  border-radius: 20px;
+}
+
 .upload-demo {
   text-align: left;
 }
 
 .el-upload__tip {
   line-height: 1.2;
-  padding-top: 5px;
+  padding-top: 2%;
   color: #909399;
 }
 
@@ -215,7 +229,6 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #979db1;
-  font-size: 11px;
+  font-size: 14px;
 }
 </style>

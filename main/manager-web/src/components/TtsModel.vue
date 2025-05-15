@@ -336,6 +336,14 @@ export default {
     },
 
     saveEdit(row) {
+      if (!row.voiceCode || !row.voiceName || !row.languageType) {
+        this.$message.error({
+          message: '音色编码、音色名称和语言类型不能为空',
+          showClose: true
+        });
+        return;
+      }
+
       try {
         const params = {
           id: row.id,
@@ -408,6 +416,12 @@ export default {
     },
 
     addNew() {
+      const hasEditing = this.ttsModels.some(row => row.editing);
+      if (hasEditing) {
+        this.$message.warning('请先完成当前编辑再新增');
+        return;
+      }
+
       const maxSort = this.ttsModels.length > 0
           ? Math.max(...this.ttsModels.map(item => Number(item.sort) || 0))
           : 0;
@@ -487,7 +501,7 @@ export default {
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 
 ::v-deep .el-dialog {
   border-radius: 8px !important;
@@ -648,12 +662,6 @@ export default {
   margin: 0 auto;
 }
 
-/* 新增按钮组样式 */
-.action-buttons {
-  bottom: 20px;
-  padding-top: 10px;
-}
-
 .action-buttons .el-button {
   padding: 8px 15px;
   font-size: 11px;
@@ -692,7 +700,6 @@ export default {
   position: static;
   padding: 15px 0;
   background: white;
-  box-shadow: 0 -2px 12px rgba(0,0,0,0.05);
 }
 
 /* 输入框自适应 */

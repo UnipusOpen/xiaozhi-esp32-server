@@ -317,7 +317,7 @@ async def handleIotDescriptors(conn, descriptors):
         )
         conn.iot_descriptors[descriptor["name"]] = iot_descriptor
 
-        if conn.use_function_call_mode:
+        if conn.load_function_plugin:
             # 注册或获取设备类型
             type_id = register_device_type(descriptor)
             device_functions = device_type_registry.get_device_functions(type_id)
