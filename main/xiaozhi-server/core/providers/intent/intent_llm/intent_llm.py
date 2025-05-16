@@ -215,7 +215,7 @@ class IntentProvider(IntentProviderBase):
 
                 # 记录识别到的function call
                 logger.bind(tag=TAG).info(
-                    f"识别到function call: {function_name}, 参数: {function_args}"
+                    f"llm 识别到意图: {function_name}, 参数: {function_args}"
                 )
 
                 # 添加到缓存
