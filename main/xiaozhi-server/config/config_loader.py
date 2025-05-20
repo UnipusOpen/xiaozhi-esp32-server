@@ -82,6 +82,8 @@ def ensure_directories(config):
 
     # ASR/TTS模块输出目录
     for module in ["ASR", "TTS"]:
+        if config.get(module) is None:
+            continue
         for provider in config.get(module, {}).values():
             output_dir = provider.get("output_dir", "")
             if output_dir:
@@ -92,6 +94,10 @@ def ensure_directories(config):
     for module_type in ["ASR", "LLM", "TTS"]:
         selected_provider = selected_modules.get(module_type)
         if not selected_provider:
+            continue
+        if config.get(module) is None:
+            continue
+        if config.get(selected_provider) is None:
             continue
         provider_config = config.get(module_type, {}).get(selected_provider, {})
         output_dir = provider_config.get("output_dir")

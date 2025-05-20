@@ -411,7 +411,7 @@ LLM:
     base_url: https://host/api/v1
     # 你可以在这里找到你的api_key
     # https://cloud.tryfastgpt.ai/account/apikey
-    api_key: fastgpt-xxx
+    api_key: 你的fastgpt密钥
     variables:
       k: "v"
       k2: "v2"
